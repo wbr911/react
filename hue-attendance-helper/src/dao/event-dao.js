@@ -32,6 +32,12 @@ function EventDao(){
  * @param {EventDto}eventDto
  */
 EventDao.prototype.save = function(eventDto){
+    if(!eventDto){
+        return;
+    }
+    if(!eventDto._id){
+        eventDto._id = eventDto.date.getTime()+'';
+    }
     db.put(eventDto)
         .then(function(response){
             console.log(response);
@@ -82,7 +88,7 @@ EventDao.prototype.getByMonth = function(year , month){
 /**
  * @return {Promise}
  */
-EventDao.prototype.destroyDB = function(){
+EventDao.prototype.reInitDB = function(){
     return db.destroy().then(function(){
         db = new PouchDB('my_database');
     });

@@ -2,8 +2,9 @@ import React from 'react';
 import EventDao from '../dao/event-dao';
 import EventDialog from './EventDialog';
 import FloatingActionButton from 'material-ui/FloatingActionButton';
+import RaisedButton from 'material-ui/RaisedButton';
 import ContentAdd from 'material-ui/svg-icons/content/add';
-import './css/calendar.css'
+import './css/Calendar.css'
 
 const WEEK_HEADER_ARR = ["Sun","Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -23,9 +24,7 @@ class Calendar extends React.Component {
             date: this.props.date ? this.props.date : now.getDate(),
             eventDialogShow:false
         };
-        this.eventDao.destroyDB()
-            .then(this.loadAttendanceEvents.bind(this , this.state.year , this.state.month))
-            .then(this.render.bind(this));
+        this.loadAttendanceEvents(this.state.year , this.state.month);
     };
     componentDidMount(){
 
@@ -42,7 +41,9 @@ class Calendar extends React.Component {
             if (!monthArr[rowIndex]) {
                 monthArr[rowIndex] = [];
             }
-            monthArr[rowIndex][columnIndex] = day;
+            var newDate = new Date(firstDate.getTime());
+            newDate.setDate(day);
+            monthArr[rowIndex][columnIndex] = newDate;
             columnIndex = (++columnIndex) % 7;
             if (columnIndex === 0) {
                 // new row;
@@ -54,7 +55,7 @@ class Calendar extends React.Component {
         for (var rowIndex = 0; rowIndex < monthArr.length; rowIndex++) {
             for (var columnIndex = 0; columnIndex < 7; columnIndex++) {
                 if (!monthArr[rowIndex][columnIndex]) {
-                    monthArr[rowIndex][columnIndex] = 0;
+                    monthArr[rowIndex][columnIndex] = null;
                 }
             }
         }
@@ -152,10 +153,11 @@ class Calendar extends React.Component {
         }
         return lastDate.getDate();
     }
-    handlerFloatingBtnClicke(e){
+    handlerFloatingBtnClick(e){
         this.setState({
-            eventDialogShow:true
-        })
+            eventDialogShow:true,
+            selectedEvent:undefined
+        });
     }
     /**
      *
@@ -219,25 +221,74 @@ class Calendar extends React.Component {
      * @param event
      */
     handleEventDialogSubmit(event){
-
+        this.setState({eventDialogShow : false});
+        console.log(event);
+        this.eventDao.save(event);
+        this.loadAttendanceEvents(this.state.year,this.state.month);
     }
+
+    /**
+     *
+     * @param eventDto
+     * @param e
+     */
+    handleCellEventClick(eventDto , e){
+        this.setState({
+            selectedEvent:eventDto,
+            eventDialogShow:true
+        });
+        e.preventDefault();
+        e.stopPropagation();
+    };
+    handleCellClickInMonth(date , e){
+        var currentTime = new Date();
+        var eventDate = new Date(date.getTime());
+        eventDate.setHours(currentTime.getHours());
+        eventDate.setMinutes(currentTime.getMinutes());
+        eventDate.setMilliseconds(currentTime.getMilliseconds());
+        /**
+         *
+         * @type {EventDto}
+         */
+        var eventDto = {
+            date:eventDate
+        };
+        this.setState({
+            eventDialogShow:true,
+            selectedEvent:eventDto
+        });
+    }
+    onEventDialogRequestClose(){
+        this.setState({
+            eventDialogShow:false,
+            selectedEvent:undefined
+        })
+    }
+    handleReIniteDBBtnClick(e){
+        this.eventDao.reInitDB().then(alert('success')).catch(function(err){alert(err)});
+    }
+
 
     render() {
         var monthArr = this.buildMonthRowArr(this.state.year, this.state.month);
+        var self = this;
         let {
-            /** @type {Map.<string, Array.<EventDto>>} */
+            /** @type {Map.<int, Array.<EventDto>>} */
             eventsMapByDay,
             /** @type {{date:date , description:string}} */
             selectedEvent,
             /** @type {boolean} */
             eventDialogShow
-        } = this.state.eventsMapByDay;
+        } = this.state;
         return (
             <div className="calendar">
-                <div className="calendar-header">
+                <div className="calendar-control">
                     <div id="calendar-switch-left" className="button circle" onClick={this.switch2Pre.bind(this)}><i className="material-icons">keyboard_arrow_left</i></div>
                     <div className="calendar-title" >{this.state.year + '年' + this.state.month + '月'}</div>
                     <div id="calendar-switch-right" className="button circle" onClick={this.switch2Next.bind(this)}><i className="material-icons">keyboard_arrow_right</i></div>
+                    <div className="calendar-right-control-room">
+                        <RaisedButton label="Re-init DB" secondary={true} onClick={this.handleReIniteDBBtnClick.bind(this)}/>
+                        </div>
                 </div>
                 <div className="calendar-container ">
                     <div className="calendar-header-container">
@@ -249,13 +300,14 @@ class Calendar extends React.Component {
                         {monthArr.map(function (row , index) {
                             return (
                                 <div key={'row-'+index} className="calendar-row ">
-                                    {row.map(function (day , index) {
+                                    {row.map(function (date , index) {
                                         return (
-                                            <div key={'day-'+index} className={"calendar-cell " + (day === 0 ? 'calendar-cell-empty' : '')}>
-                                                <div className="calendar-cell-date">{day === 0 ? '' : day}</div>
-                                                {eventsMapByDay && eventsMapByDay.has(day) && <div className="calendar-cell-event-list">
-                                                    {eventsMapByDay.get(day).map(function(/**@type {EvenDto} */ eventDto){
-                                                        return (<div className="calendar-cell-event">
+                                            <div key={'day-'+index} className={"calendar-cell " + (date === null ? 'calendar-cell-empty' : '')} onClick={(e)=> self.handleCellClickInMonth(date , e)}>
+                                                <div className="calendar-cell-date">{date === null ? '' : date.getDate()}</div>
+                                                {date && eventsMapByDay && eventsMapByDay.has(date.getDate()) &&
+                                                <div className="calendar-cell-event-list">
+                                                    {eventsMapByDay.get(date.getDate()).map(function(/**@type {EvenDto} */ eventDto){
+                                                        return (<div className="calendar-cell-event" onClick={(e)=>self.handleCellEventClick(eventDto , e)}>
                                                             <div className="calendar-cell-event-time">{eventDto.date.toLocaleTimeString()}</div>
                                                             <div className="calendar-cell-event-description">{eventDto.description}</div>
                                                         </div>)
@@ -269,8 +321,8 @@ class Calendar extends React.Component {
                         })}
                     </div>
                 </div>
-                <EventDialog show={eventDialogShow} event={selectedEvent} handleSubmit={this.handleEventDialogSubmit.bind(this)}/>
-                <FloatingActionButton onClick={this.handlerFloatingBtnClicke.bind(this)}>
+                <EventDialog show={eventDialogShow} event={selectedEvent} handleSubmit={this.handleEventDialogSubmit.bind(this)} onRequestClose={self.onEventDialogRequestClose.bind(self)}/>
+                <FloatingActionButton className='calendar-floating-btn' onClick={this.handlerFloatingBtnClick.bind(this)}>
                     <ContentAdd />
                 </FloatingActionButton>
             </div>)
@@ -278,9 +330,6 @@ class Calendar extends React.Component {
 
 }
 Calendar.defaultProps = {
-  eventDialog:{
-      show:false,
-      event:undefined
-  }
+    eventDialogShow:false
 };
 export default Calendar;

@@ -2,3 +2,15 @@
 body{
     background-color:#e6e8ea;
 }
+.input-form-line{
+    margin-bottom: 16px;
+}
+
+html , body{
+    height: 100%;
+    margin:0px;
+    padding: 0px;
+}
+.root{
+    height:100%;
+}

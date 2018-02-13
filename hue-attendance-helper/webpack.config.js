@@ -1,10 +1,14 @@
 const path = require('path');
 const ExtractTextPlugin = require("extract-text-webpack-plugin");
 module.exports = {
-    entry: './src/index.jsx',
+    entry: {
+        index : './src/index.jsx',
+        redux: './src/redux/index.js',
+        reddit:'./src/reddit/index.js'
+    },
     output: {
         path: path.resolve(__dirname, './dist'),
-        filename: 'index.webpack.bundle.js'
+        filename: '[name].webpack.bundle.js'
     },
     module: {
         loaders: [
